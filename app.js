@@ -2,7 +2,8 @@ window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
 let ctx;
 
-const startButton = document.querySelector('button');
+const startButton = document.getElementById('ctxStarter');
+
 var waveSelect = document.getElementById('wave');
 
 
@@ -65,46 +66,103 @@ function handleInput(input) {
 }
 
 function noteOn(note, velocity) {
-    const osc = ctx.createOscillator();
-    var selectedWave = waveSelect.value;
-    console.log(selectedWave);
-    console.log(oscillators);
-    const oscGain = ctx.createGain();
-    oscGain.gain.value = 0.33;
-
-
-    const velocityGainAmount = (1 / 127) * velocity;
-    const velocityGain = ctx.createGain();
-
-    velocityGain.gain.value = velocityGainAmount;
-
-    osc.type = selectedWave;
-    osc.frequency.value = midiToFreq(note);
+    synths.forEach(function(synth, index){
+        const osc = ctx.createOscillator();
+        var selectedWave = synth.wave;
+        console.log(selectedWave);
+        const oscGain = ctx.createGain();
+        oscGain.gain.value = synth.gain;
     
-    osc.connect(oscGain);
-    oscGain.connect(velocityGain)
-    velocityGain.connect(ctx.destination);
-
-    osc.gain = oscGain;
-    oscillators[note.toString()] = osc;
-
-    osc.start();
+    
+        const velocityGainAmount = (1 / 127) * velocity;
+        const velocityGain = ctx.createGain();
+    
+        velocityGain.gain.value = velocityGainAmount;
+    
+        osc.type = selectedWave;
+        osc.frequency.value = midiToFreq(note);
+        
+        osc.connect(oscGain);
+        oscGain.connect(velocityGain)
+        velocityGain.connect(ctx.destination);
+    
+        osc.gain = oscGain;
+        synth.oscillators[note.toString()] = osc;
+    
+        osc.start();
+    })
+    
 }
 
 function noteOff(note) {
-    const osc = oscillators[note.toString()];
-    const oscGain = osc.gain;
-
-    oscGain.gain.setValueAtTime(oscGain.gain.value, ctx.currentTime);
-    oscGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.03);
-
-    setTimeout(() => {
-        osc.stop(); 
-        osc.disconnect();
-    }, 20)
-
-
-
-    delete oscillators[note.toString()];
-    console.log(oscillators);
+    synths.forEach(function(synth, index){
+        const osc = synth.oscillators[note.toString()];
+        const oscGain = osc.gain;
+    
+        oscGain.gain.setValueAtTime(oscGain.gain.value, ctx.currentTime);
+        oscGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.03);
+    
+        setTimeout(() => {
+            osc.stop(); 
+            osc.disconnect();
+        }, 20)
+    
+        delete synth.oscillators[note.toString()];
+        console.log(synth.oscillators);
+    })
+    console.log(synths);
 }
+
+
+function Synth() {
+    return {
+    gain: 0.22,
+    sustain: 0,
+    wave: "sine",
+    transpose: 0,
+    oscillators: []
+    }
+}
+
+var synths = [];
+
+function newSynth(){
+    synths[synths.length] = new Synth();
+    /* if(synths.length == 2) {
+        synths[synths.length-1].wave = "sawtooth"
+        synths[synths.length-1].gain = 0.01
+    } */
+
+    var synthsHtml = '';
+    synths.forEach(function(synth,index) {
+        console.log(index);
+        synthsHtml += '<li>' + 
+        '<select name="waves' + index + '" id="wave' + index + '">' +
+            '<option value="square">square</option>' +
+            '<option value="sine">sine</option>' +
+            '<option value="sawtooth">sawtooth</option>' +
+            '<option value="triangle">triangle</option>' +
+        '</select>'
+        + '</li>';
+        
+    })
+    synthsHtml = '<ul>' + synthsHtml + '</ul>';
+    
+    document.getElementById("synthesizers").innerHTML = synthsHtml;
+    
+    // HVORDAN LYTTER VI TIL HVER UPDATE?
+    synths.forEach(function(synth,index) {
+        var value = document.getElementById("wave" + index);
+        synth.wave = value.options[value.selectedIndex].text;
+    })
+}
+
+const synthAdd = document.getElementById("addSynth");
+
+synthAdd.addEventListener('click', () => {
+    newSynth();
+    
+})
+
+// PRINT EN NY SYNTH TIL HTML HVER GANG VI TILFØJER - BIND VÆRDIER SÅ VI KAN SKIFTE WAVEFORMS!
+
